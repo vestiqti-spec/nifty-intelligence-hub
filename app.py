@@ -1,48 +1,45 @@
 import streamlit as st
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-import datetime
-import pytz 
 
-# Time Setup
-IST = pytz.timezone('Asia/Kolkata')
-datetime_ist = datetime.datetime.now(IST)
+# Load your Watchlist from the uploaded CSV
+@st.cache_data
+def load_watchlist():
+    try:
+        df = pd.read_csv("Stock_Intelligence_Hub - Watchlist.csv")
+        return df['Symbol'].tolist()
+    except:
+        return ["RELIANCE", "TCS", "HDFCBANK"] # Fallback
 
-st.set_page_config(page_title="VestIQ Intelligence", layout="wide")
+watchlist = load_watchlist()
 analyzer = SentimentIntensityAnalyzer()
 
-st.title("🚀 Nifty 500 Intelligence Hub")
-st.caption(f"Analysis generated at: {datetime_ist.strftime('%Y-%m-%d %H:%M:%S')} IST")
+st.title("🚀 VestIQ Unified Intelligence")
 
-# Sidebar for Ticker
-ticker = st.sidebar.text_input("Stock Ticker", "RELIANCE")
-st.sidebar.markdown("---")
-st.sidebar.info("This tool scans management commentary for sentiment and high-leverage financial keywords.")
+# SYSTEM: Dropdown + Manual Entry
+st.sidebar.header("Select Stock")
+selected_stock = st.sidebar.selectbox("Choose from Watchlist", ["Enter Manually"] + watchlist)
 
-# Main Input
-summary_text = st.text_area("Paste Management Summary / Result Snippets:", height=250)
+if selected_stock == "Enter Manually":
+    ticker = st.sidebar.text_input("Enter Ticker Symbol:", "RELIANCE")
+else:
+    ticker = selected_stock
 
-if st.button("Extract Alpha"):
-    if summary_text:
-        score = analyzer.polarity_scores(summary_text)['compound']
-        
-        # Dashboard Style Columns
-        col1, col2 = st.columns([1, 2])
-        
-        with col1:
-            st.subheader("Verdict")
-            label = "Positive" if score > 0.05 else "Negative" if score < -0.05 else "Neutral"
-            st.metric(label="Sentiment Score", value=label, delta=f"{score:.2f}")
-            
-        with col2:
-            st.subheader("High-Leverage Insights")
-            sentences = summary_text.split('.')
-            for s in sentences:
-                if any(word in s.lower() for word in ['growth', 'debt', 'revenue', 'margin', 'capex', 'guidance', 'profit']):
-                    st.write(f"🎯 {s.strip()}.")
-    else:
-        st.warning("Input required to begin analysis.")
+st.write(f"### Analyzing: {ticker}")
 
-# Mandatory Disclaimer
-st.markdown("---")
-st.caption("Financial Disclaimer: Provided by VestIQ Tech Intelligence Pvt Ltd. For educational purposes only. Market investments are subject to risk.")
+# PDF & Data Upload Section
+st.subheader("📁 Source Data")
+upload_type = st.radio("Select Input Type:", ["Text Paste", "PDF Report", "External Links (YT/Web)"])
+
+if upload_type == "Text Paste":
+    summary_text = st.text_area("Paste Summary/News:")
+elif upload_type == "PDF Report":
+    uploaded_file = st.file_uploader("Upload Annual Report / Concall PDF", type="pdf")
+    summary_text = "PDF Content extraction logic goes here" # Placeholder for local processing
+else:
+    st.text_input("Paste URL (YouTube/Financial Site):")
+    summary_text = ""
+
+if st.button("Generate Intelligence"):
+    # Analysis logic here...
+    st.success(f"Analysis complete for {ticker}")
