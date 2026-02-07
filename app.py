@@ -2,44 +2,61 @@ import streamlit as st
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-# Load your Watchlist from the uploaded CSV
-@st.cache_data
-def load_watchlist():
-    try:
-        df = pd.read_csv("Stock_Intelligence_Hub - Watchlist.csv")
-        return df['Symbol'].tolist()
-    except:
-        return ["RELIANCE", "TCS", "HDFCBANK"] # Fallback
-
-watchlist = load_watchlist()
+# Initialize tools
 analyzer = SentimentIntensityAnalyzer()
 
-st.title("🚀 VestIQ Unified Intelligence")
+# Load Watchlist from your uploaded CSV
+try:
+    df_watchlist = pd.read_csv("Stock_Intelligence_Hub - Watchlist.csv")
+    watchlist = df_watchlist['Symbol'].tolist()
+except:
+    watchlist = ["BHARTIARTL", "RELIANCE", "TCS"]
 
-# SYSTEM: Dropdown + Manual Entry
-st.sidebar.header("Select Stock")
-selected_stock = st.sidebar.selectbox("Choose from Watchlist", ["Enter Manually"] + watchlist)
+st.title("🚀 VestIQ Stock Intelligence Hub")
 
-if selected_stock == "Enter Manually":
-    ticker = st.sidebar.text_input("Enter Ticker Symbol:", "RELIANCE")
-else:
-    ticker = selected_stock
+# Sidebar
+selected_stock = st.sidebar.selectbox("Watchlist", ["Enter Manually"] + watchlist)
+ticker = st.sidebar.text_input("Ticker", selected_stock) if selected_stock == "Enter Manually" else selected_stock
 
-st.write(f"### Analyzing: {ticker}")
+# Input Section
+summary_text = st.text_area("Paste Management Summary / Concall Text here:", height=300)
 
-# PDF & Data Upload Section
-st.subheader("📁 Source Data")
-upload_type = st.radio("Select Input Type:", ["Text Paste", "PDF Report", "External Links (YT/Web)"])
+if st.button("Generate Intelligence Report"):
+    if summary_text:
+        # 1. Sentiment Calculation
+        score = analyzer.polarity_scores(summary_text)['compound']
+        
+        # 2. THE REPORT SECTION (This is what was missing)
+        st.markdown(f"## 📊 Intelligence Report: {ticker}")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Sentiment Score", f"{score:.2f}")
+            if score > 0.05:
+                st.success("✅ BULLISH BIAS")
+            elif score < -0.05:
+                st.error("⚠️ BEARISH BIAS")
+            else:
+                st.warning("⚖️ NEUTRAL")
 
-if upload_type == "Text Paste":
-    summary_text = st.text_area("Paste Summary/News:")
-elif upload_type == "PDF Report":
-    uploaded_file = st.file_uploader("Upload Annual Report / Concall PDF", type="pdf")
-    summary_text = "PDF Content extraction logic goes here" # Placeholder for local processing
-else:
-    st.text_input("Paste URL (YouTube/Financial Site):")
-    summary_text = ""
+        with col2:
+            st.subheader("Key Financial Triggers")
+            sentences = summary_text.split('.')
+            found = False
+            for s in sentences:
+                if any(word in s.lower() for word in ['growth', 'capex', 'debt', 'revenue', 'margin', 'profit']):
+                    st.write(f"🎯 {s.strip()}")
+                    found = True
+            if not found:
+                st.write("No specific financial triggers detected in text.")
+        
+        # 3. Add a Download Button for your records
+        report_data = f"Report for {ticker}\nSentiment: {score}\n\nText: {summary_text}"
+        st.download_button("📩 Download Analysis Report", report_data, file_name=f"{ticker}_report.txt")
+        
+    else:
+        st.error("Please paste text to analyze!")
 
-if st.button("Generate Intelligence"):
-    # Analysis logic here...
-    st.success(f"Analysis complete for {ticker}")
+# Legal Protection
+st.markdown("---")
+st.caption("Financial Disclaimer: Provided by VestIQ Tech Intelligence Pvt Ltd. This is an AI-generated analysis and not investment advice.")
